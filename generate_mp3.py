@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from pydub import AudioSegment
 import hashlib
 import os
+import re
+from unidecode import unidecode
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -17,7 +19,7 @@ def generate_context(pl_word, en_word):
     
     response = openai.chat.completions.create(
     messages=[
-        {"role": "system", "content": "Jesteś tłumaczem mającym za zadanie przetłumaczyć słówka z języka polskiego na angielski, dzięki czemu inni ludzie będę mogli tego słuchać w tle tak jak podcastu i uczyć się na sprawdziany. Pamiętaj, żeby tłumaczyć w sposób naturalny i zrozumiały dla innych. Zdania powinny być zrozumiałe, krótkie i wzięte z życia codziennego."},
+        {"role": "system", "content": "Jesteś tłumaczem mającym za zadanie przetłumaczyć słówka z języka polskiego na angielski, dzięki czemu inni ludzie będę mogli tego słuchać w tle i uczyć się na sprawdziany. Pamiętaj, żeby tłumaczyć w sposób naturalny i zrozumiały dla innych. Zdania powinny być krótkie, ponieważ uczeń będzie odtwarzał około 100 do 200 twoich wypowiedzi przed testem."},
         {"role": "user", "content": prompt},
     ],
         model="gpt-3.5-turbo",
@@ -84,17 +86,26 @@ def combine_audio_segments(audio_segments, separator_duration_ms=500):
 def get_hash(text, length=5):
     return hashlib.md5(text.encode()).hexdigest()[:length]
 
-json_input = '''
-[
-    {"pl": "kot", "en": "cat"},
-    {"pl": "wyrobić nawyk", "en": "develop a habit"}
-]
-'''
+
+def clean_filename(filename):
+    # Latinize the string
+    filename = unidecode(filename)
+
+    # Replace all non-alphanumeric characters (except '-') and whitespace with '-'
+    filename = re.sub(r'[^\w\-]+', '-', filename)
+
+    # Replace multiple consecutive dashes with a single one
+    filename = re.sub(r'-+', '-', filename)
+
+    # Remove leading or trailing dashes
+    filename = filename.strip('-')
+
+    return filename
+
+json_input = open("input.json").read()
 
 words = json.loads(json_input)
 result = process_words(words)
-
-print(result)
 
 os.makedirs("./out", exist_ok=True)
 for i, entry in enumerate(result):
@@ -114,7 +125,7 @@ for i, entry in enumerate(result):
 
     # Generate hash-based filename
     file_hash = get_hash(pl_word + en_word)
-    file_path = f'./out/{en_word}-{file_hash}.mp3'
+    file_path = f'./out/{clean_filename(pl_word)}-{file_hash}.mp3'
 
     # Save combined audio as mp3
     combined_audio.export(file_path, format="mp3")
