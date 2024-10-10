@@ -7,10 +7,7 @@ import json
 from google.cloud import texttospeech
 from dotenv import load_dotenv
 from pydub import AudioSegment
-import hashlib
 import os
-import re
-from unidecode import unidecode
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -97,24 +94,58 @@ def combine_audio_segments(audio_segments, separator_duration_ms=500):
     return combined
 
 
-def get_hash(text, length=5):
-    return hashlib.md5(text.encode()).hexdigest()[:length]
+
+def process_single_entry(entry, output_dir, idx):
+    # Process the entry and generate audio files
+    pl_word = entry['pl']
+    en_word = entry['en']
+    pl_context = entry['pl_context']
+    en_context = entry['en_context']
+
+    # Generate audio segments
+    pl_word_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(pl_word, 'pl-PL')), format="mp3")
+    en_word_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(en_word, 'en-GB')), format="mp3")
+    pl_context_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(pl_context, 'pl-PL')), format="mp3")
+    en_context_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(en_context, 'en-GB')), format="mp3")
+
+    # Combine audio
+    combined_audio = combine_audio_segments([pl_word_mp3, en_word_mp3, pl_context_mp3, en_context_mp3])
+
+    file_path = f'{output_dir}/{idx}.mp3'.replace('//', '/')
+
+    # Save combined audio as mp3
+    combined_audio.export(file_path, format="mp3")
+
+    return {
+        'en': en_word,
+        'pl': pl_word,
+        'path': file_path,
+    }
 
 
-def clean_filename(filename):
-    # Latinize the string
-    filename = unidecode(filename)
+def process_entries_in_parallel(entries, output_dir, max_workers=10):
+    os.makedirs(output_dir, exist_ok=True)
+    total_entries = len(entries)
 
-    # Replace all non-alphanumeric characters (except '-') and whitespace with '-'
-    filename = re.sub(r'[^\w\-]+', '-', filename)
+    all_res_metadata = dict()
 
-    # Replace multiple consecutive dashes with a single one
-    filename = re.sub(r'-+', '-', filename)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_single_entry, entry, output_dir, idx) for idx, entry in enumerate(entries)]
 
-    # Remove leading or trailing dashes
-    filename = filename.strip('-')
+        # Track progress
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            res_metadata = future.result()
+            base_path = os.path.basename(res_metadata['path'])
 
-    return filename
+            all_res_metadata[base_path] = {
+                'en': res_metadata['en'],
+                'pl': res_metadata['pl'],
+            }
+
+            print(f"Saved: {res_metadata['path']}, {i + 1}/{total_entries}, {(i + 1) / total_entries * 100:.2f}%")
+
+    with open(f'{output_dir}/content.json', 'w') as f:
+        json.dump(all_res_metadata, f, indent=4)
 
 
 if __name__ == '__main__':
@@ -122,29 +153,4 @@ if __name__ == '__main__':
     json_input = open("input.json").read()
 
     words = json.loads(json_input)
-    result = process_words_in_parallel(words)
-
-    os.makedirs(output_dir, exist_ok=True)
-    for i, entry in enumerate(result):
-        pl_word = entry['pl']
-        en_word = entry['en']
-        pl_context = entry['pl_context']
-        en_context = entry['en_context']
-
-        # Generate audio segments
-        pl_word_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(pl_word, 'pl-PL')), format="mp3")
-        en_word_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(en_word, 'en-GB')), format="mp3")
-        pl_context_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(pl_context, 'pl-PL')), format="mp3")
-        en_context_mp3 = AudioSegment.from_file(io.BytesIO(text_to_speech(en_context, 'en-GB')), format="mp3")
-
-        # Combine audio
-        combined_audio = combine_audio_segments([pl_word_mp3, en_word_mp3, pl_context_mp3, en_context_mp3])
-
-        # Generate hash-based filename
-        file_hash = get_hash(pl_word + en_word)
-        file_path = f'{output_dir}/{clean_filename(pl_word)}-{file_hash}.mp3'
-
-        # Save combined audio as mp3
-        combined_audio.export(file_path, format="mp3")
-
-        print(f"Saved: {file_path}, {i + 1}/{len(result)}, {(i + 1) / len(result) * 100:.2f}%")
+    process_entries_in_parallel(process_words_in_parallel(words), output_dir)
