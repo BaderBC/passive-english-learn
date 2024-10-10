@@ -37,7 +37,7 @@ def generate_context(pl_word, en_word):
 
 def process_words(words):
     result = []
-    for word_pair in words:
+    for i, word_pair in enumerate(words):
         pl_word = word_pair['pl']
         en_word = word_pair['en']
         
@@ -49,6 +49,7 @@ def process_words(words):
             'pl_context': pl_context,
             'en_context': en_context
         })
+        print(f"Processed: {i+1}/{len(words)}, {(i+1)/len(words)*100:.2f}%")
     
     return result
 
@@ -130,4 +131,4 @@ for i, entry in enumerate(result):
     # Save combined audio as mp3
     combined_audio.export(file_path, format="mp3")
 
-    print(f"Saved: {file_path}")
+    print(f"Saved: {file_path}, {i+1}/{len(result)}, {(i+1)/len(result)*100:.2f}%")
