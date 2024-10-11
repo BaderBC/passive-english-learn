@@ -1,4 +1,5 @@
 import concurrent.futures
+import functools
 import io
 import sys
 
@@ -62,6 +63,7 @@ def process_words_in_parallel(words, max_workers=10):
     return [future.result() for future in futures]
 
 
+@retry_on_failure
 def text_to_speech(text, language_code):
     synthesis_input = texttospeech.SynthesisInput(text=text)
 
@@ -93,7 +95,21 @@ def combine_audio_segments(audio_segments, separator_duration_ms=500):
 
     return combined
 
+import functools
 
+def retry_on_failure(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        attempts = 0
+        while attempts < 4:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                attempts += 1
+                if attempts == 4:
+                    raise e
+                print(f"Attempt {attempts} failed: {e}. Retrying...")
+    return wrapper
 
 def process_single_entry(entry, output_dir, idx):
     # Process the entry and generate audio files
