@@ -84,6 +84,8 @@ export class Player {
     }
 
     public async setCurrentIndex(index: number, timeIntervalBeforePlayMs: number = 300): Promise<void> {
+        if (index === this.nextContentIndex-1) return;
+        
         this.nextContentIndex = index;
         this.nextAudio = new Audio(`${MP3_URL}${this.book}/${this.chapter}/${this.nextContentIndex}.mp3`);
         this.nextAudio.load();
@@ -107,7 +109,7 @@ export class Player {
         this.nextAudio = new Audio(`${MP3_URL}${this.book}/${this.chapter}/${this.nextContentIndex}.mp3`);
         this.nextAudio.load();
         this.nextAudio.volume = this.volume;
-
+        
         this.onNewIndex.forEach(cb => cb());
 
         if (this.status !== 'PAUSED') {

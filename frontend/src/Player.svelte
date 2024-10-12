@@ -64,14 +64,30 @@
             const playerWidth = playerElement.offsetWidth;
             const viewportWidth = window.innerWidth;
 
-            console.log('dasasd', viewportWidth / playerWidth);
-
             const scaleFactor = Math.min(1, (viewportWidth / playerWidth - 0.03));
             playerElement.style.transform = `scale(${scaleFactor})`;
         }
 
         matchDeviceWidth();
         window.addEventListener('resize', matchDeviceWidth);
+
+        window.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowRight':
+                    next();
+                    break;
+                case 'ArrowLeft':
+                    prev();
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    playStop();
+                    break;
+                default:
+                    return;
+            }
+            e.stopImmediatePropagation();
+        }, true);
     });
 </script>
 
@@ -116,7 +132,7 @@
                 <Slider
                         bind:value={mainSliderValue}
                         min={0}
-                        max={158}
+                        max={player.playlistLength-1}
                         step={1}
                         precision={0}
                         formatter='{v => Math.round(v)+1}'
