@@ -9,6 +9,10 @@
     function resetChosenChapter() {
         setUrl(propertToComeBack!, '');
     }
+
+    function capitalize(str: string) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
 </script>
 
 {#if (propertToComeBack)}
@@ -19,7 +23,8 @@
 
 <div class="resources">
     {#each resources as resource}
-        <button on:click={() => setUrl(urlPropertyToModify, resource)}>{resource}</button>
+        {@const resourceName = capitalize(resource.replace('-', ' '))}
+        <button on:click={() => setUrl(urlPropertyToModify, resource)}>{resourceName}</button>
     {/each}
 </div>
 
