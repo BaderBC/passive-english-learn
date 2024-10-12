@@ -17,7 +17,14 @@
 
     export function setUrl(key: UrlParams, val: string) {
         let currentUrl = new URL(window.location.href);
+        
         currentUrl.searchParams.set(key.toString(), val);
+        currentUrl.searchParams.forEach((value, paramKey) => {
+            if (!value) {
+                currentUrl.searchParams.delete(paramKey);
+            }
+        });
+        
         window.history.replaceState({}, '', currentUrl);
 
         // refresh all url params:
