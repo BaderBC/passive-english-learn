@@ -24,7 +24,7 @@ def generate_context(pl_word, en_word):
              "content": "Jesteś tłumaczem mającym za zadanie przetłumaczyć słówka z języka polskiego na angielski, dzięki czemu inni ludzie będę mogli tego słuchać w tle i uczyć się na sprawdziany. Pamiętaj, żeby tłumaczyć w sposób naturalny i zrozumiały dla innych. Zdania powinny być krótkie, ponieważ uczeń będzie odtwarzał około 100 do 200 twoich wypowiedzi przed testem."},
             {"role": "user", "content": prompt},
         ],
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
     )
 
     context = response.choices[0].message.content
