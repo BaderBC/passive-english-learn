@@ -2,6 +2,7 @@ import concurrent.futures
 import functools
 import io
 import sys
+import time
 
 import openai
 import json
@@ -50,15 +51,24 @@ def process_single_word(word_pair):
         'en_context': en_context
     }
 
+# Global variable to avoid gpt-4o rate limits
+processed_words_count = 0
 
 def process_words_in_parallel(words, max_workers=10):
+    global processed_words_count
+
     total_words = len(words)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process_single_word, word_pair) for word_pair in words]
 
-        # Track progress
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
-            print(f"Processed: {i + 1}/{total_words}, {(i + 1) / total_words * 100:.2f}%", flush=True)
+            processed_words_count += 1
+            print(f"Processed: {processed_words_count}/{total_words}, {(processed_words_count) / total_words * 100:.2f}%", flush=True)
+
+            if processed_words_count % 100 == 0:
+                print("Rate limit reached, pausing for 1 minute...", flush=True)
+                time.sleep(60)
 
     return [future.result() for future in futures]
 
@@ -73,7 +83,7 @@ def retry_on_failure(func):
                 attempts += 1
                 if attempts == 4:
                     raise e
-                print(f"Attempt {attempts} failed: {e}. Retrying...")
+                print(f"Attempt {attempts} failed: {e}. Retrying...", flush=True)
     return wrapper
 
 @retry_on_failure
@@ -113,8 +123,6 @@ def combine_audio_segments(audio_segments, separator_duration_ms=500):
         combined += segment + separator
 
     return combined
-
-import functools
 
 def process_single_entry(entry, output_dir, idx):
     # Process the entry and generate audio files
@@ -167,7 +175,7 @@ def process_entries_in_parallel(entries, output_dir, max_workers=10):
                 'pl_context': res_metadata['pl_context'],
             }
 
-            print(f"Saved: {res_metadata['path']}, {i + 1}/{total_entries}, {(i + 1) / total_entries * 100:.2f}%")
+            print(f"Saved: {res_metadata['path']}, {i + 1}/{total_entries}, {(i + 1) / total_entries * 100:.2f}%", flush=True)
 
     with open(f'{output_dir}/content.json', 'w') as f:
         json.dump(all_res_metadata, f, indent=4)
