@@ -62,41 +62,6 @@ def process_words_in_parallel(words, max_workers=10):
 
     return [future.result() for future in futures]
 
-
-@retry_on_failure
-def text_to_speech(text, language_code):
-    synthesis_input = texttospeech.SynthesisInput(text=text)
-
-    # Setting voice type
-    voice = texttospeech.VoiceSelectionParams(
-        language_code=language_code,
-        ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
-    )
-
-    # Setting audio format
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3
-    )
-
-    # Generating audio
-    response = tts_client.synthesize_speech(
-        input=synthesis_input, voice=voice, audio_config=audio_config
-    )
-
-    return response.audio_content
-
-
-def combine_audio_segments(audio_segments, separator_duration_ms=500):
-    combined = AudioSegment.silent(duration=0)
-    separator = AudioSegment.silent(duration=separator_duration_ms)
-
-    for segment in audio_segments:
-        combined += segment + separator
-
-    return combined
-
-import functools
-
 def retry_on_failure(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -110,6 +75,46 @@ def retry_on_failure(func):
                     raise e
                 print(f"Attempt {attempts} failed: {e}. Retrying...")
     return wrapper
+
+@retry_on_failure
+def text_to_speech(text, language_code):
+    synthesis_input = texttospeech.SynthesisInput(text=text)
+
+    if language_code == "pl-PL":
+        voice = texttospeech.VoiceSelectionParams(
+            language_code="pl-PL",
+            name="pl-PL-Standard-D",
+            ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
+        )
+    elif language_code == "en-GB":
+        voice = texttospeech.VoiceSelectionParams(
+            language_code="en-GB",
+            name="en-GB-Standard-A",
+            ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
+        )
+    else:
+        raise ValueError("Unsupported language code")
+
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3
+    )
+
+    response = tts_client.synthesize_speech(
+        input=synthesis_input, voice=voice, audio_config=audio_config
+    )
+
+    return response.audio_content
+
+def combine_audio_segments(audio_segments, separator_duration_ms=500):
+    combined = AudioSegment.silent(duration=0)
+    separator = AudioSegment.silent(duration=separator_duration_ms)
+
+    for segment in audio_segments:
+        combined += segment + separator
+
+    return combined
+
+import functools
 
 def process_single_entry(entry, output_dir, idx):
     # Process the entry and generate audio files
@@ -135,6 +140,8 @@ def process_single_entry(entry, output_dir, idx):
     return {
         'en': en_word,
         'pl': pl_word,
+        'en_context': en_context,
+        'pl_context': pl_context,
         'path': file_path,
     }
 
@@ -156,6 +163,8 @@ def process_entries_in_parallel(entries, output_dir, max_workers=10):
             all_res_metadata[base_path] = {
                 'en': res_metadata['en'],
                 'pl': res_metadata['pl'],
+                'en_context': res_metadata['en_context'],
+                'pl_context': res_metadata['pl_context'],
             }
 
             print(f"Saved: {res_metadata['path']}, {i + 1}/{total_entries}, {(i + 1) / total_entries * 100:.2f}%")
