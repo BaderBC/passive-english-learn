@@ -64,7 +64,7 @@ def process_words_in_parallel(words, max_workers=10):
             
             if (i + 1) % gpt_rpm_rate_limit == 0:
                 for j, future in enumerate(concurrent.futures.as_completed(futures)):
-                    print(f"Processed: {j + 1}/{total_words}, {(j + 1) / total_words * 100:.2f}%", flush=True)
+                    print(f"Processed: {len(processed_results) + 1}/{total_words}, {(len(processed_results) + 1) / total_words * 100:.2f}%", flush=True)
                     
                     processed_results.append(future.result())
                 
@@ -76,7 +76,7 @@ def process_words_in_parallel(words, max_workers=10):
         # Process any remaining futures
         if futures:
             for j, future in enumerate(concurrent.futures.as_completed(futures)):
-                print(f"Processed: {j + 1}/{total_words}, {(j + 1) / total_words * 100:.2f}%", flush=True)
+                print(f"Processed: {len(processed_results) + 1}/{total_words}, {(len(processed_results) + 1) / total_words * 100:.2f}%", flush=True)
                 
                 processed_results.append(future.result())
         
