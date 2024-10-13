@@ -70,7 +70,7 @@ def process_words_in_parallel(words, max_workers=10):
                 
                 futures.clear()
                 
-                print("GPT-4o rate limit reached, pausing for 1 minute...")
+                print("GPT-4o rate limit reached, pausing for 1 minute...", flush=True)
                 time.sleep(60)
 
         # Process any remaining futures
