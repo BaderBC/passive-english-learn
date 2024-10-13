@@ -51,26 +51,36 @@ def process_single_word(word_pair):
         'en_context': en_context
     }
 
-# Global variable to avoid gpt-4o rate limits
-processed_words_count = 0
-
 def process_words_in_parallel(words, max_workers=10):
-    global processed_words_count
-
     total_words = len(words)
-
+    processed_results = []
+    gpt_rpm_rate_limit = 100
+    
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(process_single_word, word_pair) for word_pair in words]
-
-        for i, future in enumerate(concurrent.futures.as_completed(futures)):
-            processed_words_count += 1
-            print(f"Processed: {processed_words_count}/{total_words}, {(processed_words_count) / total_words * 100:.2f}%", flush=True)
-
-            if processed_words_count % 100 == 0:
-                print("Rate limit reached, pausing for 1 minute...", flush=True)
+        futures = []
+        
+        for i, word in enumerate(words):
+            futures.append(executor.submit(process_single_word, word))
+            
+            if (i + 1) % gpt_rpm_rate_limit == 0:
+                for j, future in enumerate(concurrent.futures.as_completed(futures)):
+                    print(f"Processed: {j + 1}/{total_words}, {(j + 1) / total_words * 100:.2f}%", flush=True)
+                    
+                    processed_results.append(future.result())
+                
+                futures.clear()
+                
+                print("GPT-4o rate limit reached, pausing for 1 minute...")
                 time.sleep(60)
 
-    return [future.result() for future in futures]
+        # Process any remaining futures
+        if futures:
+            for j, future in enumerate(concurrent.futures.as_completed(futures)):
+                print(f"Processed: {j + 1}/{total_words}, {(j + 1) / total_words * 100:.2f}%", flush=True)
+                
+                processed_results.append(future.result())
+        
+    return processed_results
 
 def retry_on_failure(func):
     @functools.wraps(func)
