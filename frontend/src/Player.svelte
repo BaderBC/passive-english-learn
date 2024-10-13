@@ -52,10 +52,7 @@
         player.prev(300);
     }
 
-    function resetChosenChapter() {
-        player.destroy();
-        setUrl(UrlParams.Chapter, '');
-    }
+    let resetChosenChapter = () => undefined;
 
     onMount(() => {
         const playerElement = document.getElementById('player')!;
@@ -68,10 +65,7 @@
             playerElement.style.transform = `scale(${scaleFactor})`;
         }
 
-        matchDeviceWidth();
-        window.addEventListener('resize', matchDeviceWidth);
-
-        window.addEventListener('keydown', (e) => {
+        function handleKeydown(e: KeyboardEvent) {
             switch (e.key) {
                 case 'ArrowRight':
                     next();
@@ -87,7 +81,18 @@
                     return;
             }
             e.stopImmediatePropagation();
-        }, true);
+        }
+
+        matchDeviceWidth();
+        window.addEventListener('resize', matchDeviceWidth);
+        window.addEventListener('keydown', handleKeydown, true);
+
+        resetChosenChapter = () => {
+            player.destroy();
+            window.removeEventListener('resize', matchDeviceWidth);
+            window.removeEventListener('keydown', handleKeydown, true);
+            setUrl(UrlParams.Chapter, '');
+        }
     });
 </script>
 
